@@ -21,6 +21,8 @@ add_executable(sasset_tests
     doctest_main.cpp
     test_guid.cpp
     test_core.cpp
+    test_model.cpp
+    test_texture.cpp
 )
-target_link_libraries(sasset_tests PRIVATE SunsetAsset::core sasset_doctest sasset_options)
+target_link_libraries(sasset_tests PRIVATE SunsetAsset::core SunsetAsset::model SunsetAsset::texture sasset_doctest sasset_options)
 add_test(NAME unit COMMAND sasset_tests)

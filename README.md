@@ -12,10 +12,14 @@
 
 ## 状態
 
-S1 (core) ができました: GUID、`.meta` の読み書き、アセットのデータベース (走査、ID → パス、外部の参照)、
-取り込みの登録、キャッシュの入れ物 (版つきのバイナリ)。取り込み (FBX / glTF / テクスチャ) はこれから作ります。
+| ターゲット | 内容 |
+|------|------|
+| `SunsetAsset::core` | GUID、`.meta` の読み書き、アセットのデータベース (走査、ID → パス、外部の参照)、取り込みの登録、キャッシュの入れ物 (版つきのバイナリ) |
+| `SunsetAsset::model` | モデルの取り込み: FBX / OBJ (ufbx)、glTF / GLB (cgltf)。メッシュ、サブメッシュ、マテリアルのスロット、ノード、スキン、モーフ。右手系 / Y が上 / メートルに変換 |
+| `SunsetAsset::texture` | テクスチャの取り込み: PNG / JPEG / TGA / BMP (stb_image)。RGBA8 |
 
-依存: nlohmann/json 3.12 (MIT。FetchContent でアーカイブの SHA256 を固定して取得)。
+依存 (どれも FetchContent で版と SHA256 を固定して取得): nlohmann/json 3.12 (MIT)、cgltf 1.15 (MIT)、
+ufbx 0.23.1 (MIT / 公開領域)、stb_image (MIT / 公開領域)。取り込みのライブラリは中だけで使い、ヘッダーには出しません。
 
 ## ビルド
 
@@ -32,4 +36,4 @@ ctest --preset windows-debug
 | `SUNSET_ASSET_BUILD_TESTS` | OFF (プリセットでは ON) | doctest の単体テスト |
 | `SUNSET_ASSET_INSTALL` | ON | `find_package(SunsetAsset)` で使えるようにする |
 
-使う側は `find_package(SunsetAsset 0.1)` か FetchContent で取り込み、`SunsetAsset::core` をリンクします。
+使う側は `find_package(SunsetAsset 0.1)` か FetchContent で取り込み、必要なターゲット (`SunsetAsset::core` / `model` / `texture`) をリンクします。

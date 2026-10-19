@@ -122,9 +122,24 @@ mip の生成と圧縮 (BC7 など) は後の段階。HDR (`.hdr` / `.exr`) も�
 | 段階 | 内容 |
 |------|------|
 | S1 (完了) | core: .meta、データベース、取り込みの登録、キャッシュの入れ物。JSON は nlohmann/json 3.12 (Studio と同じ名前と版で宣言し、一緒に使うときは 1 つにまとめる) |
-| S2 | model: glTF → FBX の順に取り込み、texture |
+| S2 (完了) | model: glTF (cgltf 1.15) / FBX と OBJ (ufbx 0.23.1)、texture (stb_image)。詳しくは下の「S2 の実装」 |
 | S3 | Studio: アセットのパネル、取り込み、シーンに置く、描画、選択 |
 | のちに | スキンの変形とアニメーション、PMX、音、独自のデータ、テクスチャの mip と圧縮 |
+
+## S2 の実装
+
+| 項目 | 内容 |
+|------|------|
+| 取り込みの登録 | `makeModelImporter()` ("model": .fbx / .obj / .gltf / .glb)、`makeTextureImporter()` ("texture": .png / .jpg / .jpeg / .tga / .bmp)。読むときは `loadModel` / `loadTexture` (キャッシュのファイルから) |
+| キャッシュの形 | モデル: `MJSN` (構造の JSON: ノード、スロット、スキン、メッシュの名前 / 頂点の数 / サブメッシュ / 境界 / モーフの名前と、配列の位置) と `MBIN` (配列を並べたもの)。テクスチャ: `TXIN` (幅、高さ、チャンネル、sRGB) と `TXPX` (RGBA8) |
+| glTF | 座標はそのまま。primitive をつなげて 1 つのメッシュにし、primitive ごとにサブメッシュ (スロット = マテリアル。マテリアルのないものは "Default")。行列で書かれたノードは位置 / 回転 / 大きさに分ける。モーフはメッシュの target_names / weights。ファイルは自前で読んで cgltf に渡す (UTF-8 のパス) |
+| FBX / OBJ | ufbx に、右手系 / Y が上 / メートル、ジオメトリの変換をメッシュに焼き込む、足りない法線を作る、を頼む。面を三角形に分け、同じ頂点はまとめる。マテリアルの部分ごとにサブメッシュ。UV は上下を反転 (左上が原点)。スキンは最初のスキンのクラスタ (逆バインド = geometry_to_bone)。ブレンドシェイプはチャンネルごとにモーフ |
+| 共通 | 骨の重みは大きい 4 つを残して合計 1 に。接線は UV0 があれば作る (三角形ごとに足して法線に直交させる。MikkTSpace ではない)。境界の箱 (メッシュごと、モデル全体) |
+| 設定 | model: `scale` (1.0)、`generateTangents` (true)。texture: `srgb` (true) |
+| 参照するファイル | `Importer::referencedFiles` (テクスチャ、glTF の .bin)。Studio がプロジェクトに取り込むとき、一緒にコピーする |
+| 取得 | ufbx はアーカイブがテストデータ入りで CMake の展開に失敗するので、タグの `ufbx.h` / `ufbx.c` を SHA256 付きで個別に取得する |
+| テスト | glTF (テストの中で書く: 2 つの primitive、2 つのマテリアル、スキン、モーフ、ノードの階層、`scale`)、FBX (手書きの ASCII: cm → m、マテリアル)、OBJ、壊れたファイル、TGA |
+| 未対応 | 埋め込みのテクスチャ (glTF の data URI / bufferView、FBX の content)、glTF の疎な accessor の確認、MikkTSpace の接線、テクスチャの mip / 圧縮 / HDR |
 
 ## 確認済み (2026-10-19、ユーザーの決定)
 

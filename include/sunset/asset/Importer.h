@@ -39,6 +39,10 @@ public:
 
 	// 取り込む。失敗したら false (diag.errors に理由)。警告は diag.warnings
 	virtual bool import(const ImportContext& ctx, ArtifactWriter& out, Diagnostics& diag) const = 0;
+
+	// 元のファイルが参照しているファイル (モデルのテクスチャなど)。元のファイルからの相対パス (区切りは "/")。
+	// プロジェクトに取り込むとき、一緒にコピーするために使う
+	virtual std::vector<std::string> referencedFiles(const std::filesystem::path& /*source*/, Diagnostics& /*diag*/) const { return {}; }
 };
 
 class ImporterRegistry

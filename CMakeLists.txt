@@ -5,15 +5,16 @@
 #  設計: docs/design/asset-library.md
 #
 #  ターゲット:
-#    SunsetAsset::core   GUID、.meta、取り込みの登録、キャッシュ (静的ライブラリ)
-#    (予定) SunsetAsset::model / SunsetAsset::texture  種類ごとの取り込み
+#    SunsetAsset::core     GUID、.meta、取り込みの登録、キャッシュ (静的ライブラリ)
+#    SunsetAsset::model    モデルの取り込み (FBX / OBJ: ufbx、glTF / GLB: cgltf)
+#    SunsetAsset::texture  テクスチャの取り込み (PNG / JPEG / TGA / BMP: stb_image)
 # ============================================================
 cmake_minimum_required(VERSION 3.22)
 
 project(SunsetAsset
     VERSION      0.1.0
     DESCRIPTION  "Asset import and management library (models, textures, audio, custom data)"
-    LANGUAGES    CXX
+    LANGUAGES    C CXX
 )
 
 option(SUNSET_ASSET_BUILD_TESTS "doctest のテストをビルドする" OFF)
@@ -48,6 +49,55 @@ if(SUNSET_ASSET_INSTALL AND PROJECT_IS_TOP_LEVEL)
     set(JSON_Install ON CACHE BOOL "" FORCE)
 endif()
 FetchContent_MakeAvailable(nlohmann_json)
+
+# 取り込みに使うライブラリ (ヘッダー 1 つ + ソース 1 つ。同梱の CMake は使わない)
+#   cgltf v1.15 (MIT)、ufbx v0.23.1 (MIT / 公開領域。下で個別に取得)、stb (MIT / 公開領域。stb_image の最後の変更のコミット)
+FetchContent_Declare(sasset_cgltf
+    URL      https://github.com/jkuhlmann/cgltf/archive/refs/tags/v1.15.tar.gz
+    URL_HASH SHA256=84e352092e5cd6aab7f66de62ddb66beb5e6f18d412ca9d12950d7a55bfef25a
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR _sasset_no_cmake_
+)
+FetchContent_Declare(sasset_stb
+    URL      https://github.com/nothings/stb/archive/013ac3beddff3dbffafd5177e7972067cd2b5083.tar.gz
+    URL_HASH SHA256=b01aa93e1a968aed55f43e072c98ee401d2f20e897aabdb1a166c7166886ed11
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR _sasset_no_cmake_
+)
+FetchContent_MakeAvailable(sasset_cgltf sasset_stb)
+
+# ufbx はアーカイブ (テストデータ入りで、CMake の展開では開けない) ではなく、タグの ufbx.h / ufbx.c だけを取得する
+set(sasset_ufbx_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_deps/sasset_ufbx-v0.23.1")
+foreach(item "ufbx.h|f787be529af577efc04f3e3e735844a08556718dbb613d1211c2b313d72895dc"
+             "ufbx.c|4a956c26a708e40d82ecb0aeaee54da709d5ba7c144c9642174970059bda7e1d")
+    string(REPLACE "|" ";" parts "${item}")
+    list(GET parts 0 name)
+    list(GET parts 1 hash)
+    if(NOT EXISTS "${sasset_ufbx_SOURCE_DIR}/${name}")
+        file(DOWNLOAD "https://raw.githubusercontent.com/ufbx/ufbx/v0.23.1/${name}" "${sasset_ufbx_SOURCE_DIR}/${name}"
+             EXPECTED_HASH SHA256=${hash} STATUS status)
+        list(GET status 0 code)
+        if(NOT code EQUAL 0)
+            file(REMOVE "${sasset_ufbx_SOURCE_DIR}/${name}")
+            message(FATAL_ERROR "ufbx の ${name} を取得できません: ${status}")
+        endif()
+    endif()
+endforeach()
+
+# 外部のライブラリの実装 (C。警告を厳しくしない)
+add_library(sasset_thirdparty STATIC
+    src/thirdparty/impl.c
+    ${sasset_ufbx_SOURCE_DIR}/ufbx.c
+)
+target_include_directories(sasset_thirdparty SYSTEM PUBLIC
+    $<BUILD_INTERFACE:${sasset_cgltf_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${sasset_ufbx_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${sasset_stb_SOURCE_DIR}>
+)
+set_target_properties(sasset_thirdparty PROPERTIES OUTPUT_NAME SunsetAssetThirdParty POSITION_INDEPENDENT_CODE ON)
+if(MSVC)
+    target_compile_options(sasset_thirdparty PRIVATE /W0 /utf-8)
+endif()
 
 # ============================================================
 #  core
@@ -84,6 +134,36 @@ target_link_libraries(sasset_core
     PRIVATE $<BUILD_INTERFACE:sasset_options>)
 
 # ============================================================
+#  model / texture
+# ============================================================
+add_library(sasset_model STATIC
+    include/sunset/asset/model/Model.h
+    include/sunset/asset/model/ModelImporter.h
+    src/model/GltfImport.cpp
+    src/model/MeshBuilder.h
+    src/model/MeshBuilder.cpp
+    src/model/ModelFormats.h
+    src/model/ModelImporter.cpp
+    src/model/ModelSerialize.cpp
+    src/model/UfbxImport.cpp
+)
+add_library(SunsetAsset::model ALIAS sasset_model)
+set_target_properties(sasset_model PROPERTIES EXPORT_NAME model OUTPUT_NAME SunsetAssetModel)
+target_link_libraries(sasset_model
+    PUBLIC  sasset_core
+    PRIVATE sasset_thirdparty $<BUILD_INTERFACE:sasset_options>)
+
+add_library(sasset_texture STATIC
+    include/sunset/asset/texture/Texture.h
+    src/texture/TextureImporter.cpp
+)
+add_library(SunsetAsset::texture ALIAS sasset_texture)
+set_target_properties(sasset_texture PROPERTIES EXPORT_NAME texture OUTPUT_NAME SunsetAssetTexture)
+target_link_libraries(sasset_texture
+    PUBLIC  sasset_core
+    PRIVATE sasset_thirdparty $<BUILD_INTERFACE:sasset_options>)
+
+# ============================================================
 #  テスト
 # ============================================================
 if(SUNSET_ASSET_BUILD_TESTS)
@@ -98,7 +178,7 @@ if(SUNSET_ASSET_INSTALL)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
     install(DIRECTORY include/sunset DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(TARGETS sasset_core EXPORT SunsetAssetTargets
+    install(TARGETS sasset_core sasset_model sasset_texture sasset_thirdparty EXPORT SunsetAssetTargets
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
