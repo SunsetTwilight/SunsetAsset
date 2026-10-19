@@ -5,6 +5,7 @@
 #include "sunset/asset/AssetDatabase.h"
 #include "sunset/asset/model/ModelImporter.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -337,6 +338,24 @@ TEST_CASE("モデル: OBJ も ufbx で読む")
 	REQUIRE(m.meshes.size() == 1);
 	CHECK(m.meshes[0].vertexCount == 3);
 	CHECK(m.meshes[0].uv0[1] == doctest::Approx(1.0f));   // V は上下を反転 (左上が原点)
+
+	// マテリアルのファイル (mtllib) とテクスチャを、参照するファイルとして返す
+	writeBytes(root / "mat.obj", "mtllib mat.mtl\nv 0 0 0\nv 1 0 0\nv 0 1 0\nvt 0 0\nvt 1 0\nvt 0 1\nusemtl Red\nf 1/1 2/2 3/3\n");
+	writeBytes(root / "mat.mtl", "newmtl Red\nKd 1 0 0\nmap_Kd tex/red.png\n");
+	Diagnostics refDiag;
+	const auto refs = f.reg.forFile(root / "mat.obj")->referencedFiles(root / "mat.obj", refDiag);
+	CHECK(std::find(refs.begin(), refs.end(), "mat.mtl") != refs.end());
+	CHECK(std::find(refs.begin(), refs.end(), "tex/red.png") != refs.end());
+	// .mtl のマテリアルを読む (基本色とテクスチャのパス)
+	f.db.scan(root, diag);
+	REQUIRE(f.db.import(*f.db.findByPath("mat.obj"), cache, artifact, diag));
+	Model mm;
+	REQUIRE(loadModel(artifact, mm));
+	REQUIRE(mm.slots.size() == 1);
+	CHECK(mm.slots[0].name == "Red");
+	CHECK(mm.slots[0].baseColor[0] == doctest::Approx(1.0f));
+	CHECK(mm.slots[0].baseColor[1] == doctest::Approx(0.0f));
+	CHECK(mm.slots[0].baseColorTexture.path == "tex/red.png");
 	fs::remove_all(root);
 	fs::remove_all(cache);
 }

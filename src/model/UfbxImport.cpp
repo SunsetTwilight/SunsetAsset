@@ -39,6 +39,8 @@ ufbx_scene* load(const fs::path& file, Diagnostics& diag)
 	opts.space_conversion            = UFBX_SPACE_CONVERSION_MODIFY_GEOMETRY;
 	opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY;
 	opts.generate_missing_normals    = true;
+	opts.load_external_files         = true;   // OBJ の .mtl (マテリアル)
+	opts.ignore_missing_external_files = true; // .mtl がなくても形は読む
 	ufbx_error error = {};
 	const std::string path = pathToUtf8(file);   // ufbx は UTF-8 のパスを受け取る (Windows では UTF-16 にして開く)
 	ufbx_scene* scene = ufbx_load_file_len(path.data(), path.size(), &opts, &error);
@@ -308,6 +310,34 @@ bool importUfbx(const fs::path& file, Model& out, Diagnostics& diag)
 std::vector<std::string> ufbxReferencedFiles(const fs::path& file, Diagnostics& diag)
 {
 	std::vector<std::string> out;
+	// OBJ のマテリアルのファイル (mtllib)。ufbx のテクスチャの一覧には入らない
+	std::string ext = genericUtf8(file.extension());
+	std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	if (ext == ".obj")
+	{
+		std::string text;
+		if (readFile(file, text))
+		{
+			size_t pos = 0;
+			while (pos < text.size())
+			{
+				size_t end = text.find('\n', pos);
+				if (end == std::string::npos) end = text.size();
+				std::string line = text.substr(pos, end - pos);
+				pos = end + 1;
+				while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t'))
+					line.pop_back();
+				const size_t first = line.find_first_not_of(" \t");
+				if (first == std::string::npos || line.compare(first, 7, "mtllib ") != 0)
+					continue;
+				std::string name = line.substr(first + 7);
+				name.erase(0, name.find_first_not_of(" \t"));
+				std::replace(name.begin(), name.end(), '\\', '/');
+				if (!name.empty() && std::find(out.begin(), out.end(), name) == out.end())
+					out.push_back(name);
+			}
+		}
+	}
 	SceneScope scope;
 	scope.scene = load(file, diag);
 	if (!scope.scene)
