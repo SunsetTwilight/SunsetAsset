@@ -33,12 +33,39 @@ else()
 endif()
 
 # ============================================================
+#  外部ライブラリ (アーカイブの URL + SHA256 で版を固定する)
+#    nlohmann/json (MIT)  .meta と取り込みの設定。SunsetStudio と同じ名前と版にして、一緒に使うときは 1 つにまとめる
+# ============================================================
+include(FetchContent)
+set(SASSET_JSON_VERSION "v3.12.0")
+FetchContent_Declare(nlohmann_json
+    URL      https://github.com/nlohmann/json/releases/download/${SASSET_JSON_VERSION}/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+# install するときは nlohmann_json の CMake のパッケージも一緒に入れる (find_dependency で見つけるため)
+if(SUNSET_ASSET_INSTALL AND PROJECT_IS_TOP_LEVEL)
+    set(JSON_Install ON CACHE BOOL "" FORCE)
+endif()
+FetchContent_MakeAvailable(nlohmann_json)
+
+# ============================================================
 #  core
 # ============================================================
 add_library(sasset_core STATIC
+    include/sunset/asset/AssetDatabase.h
+    include/sunset/asset/Artifact.h
+    include/sunset/asset/Common.h
     include/sunset/asset/Guid.h
+    include/sunset/asset/Importer.h
+    include/sunset/asset/Meta.h
     include/sunset/asset/Version.h
+    src/AssetDatabase.cpp
+    src/Artifact.cpp
+    src/Common.cpp
     src/Guid.cpp
+    src/Importer.cpp
+    src/Meta.cpp
 )
 add_library(SunsetAsset::core ALIAS sasset_core)
 set_target_properties(sasset_core PROPERTIES EXPORT_NAME core OUTPUT_NAME SunsetAssetCore)
@@ -52,7 +79,9 @@ target_compile_definitions(sasset_core PUBLIC
     SUNSET_ASSET_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     SUNSET_ASSET_VERSION_PATCH=${PROJECT_VERSION_PATCH}
 )
-target_link_libraries(sasset_core PRIVATE $<BUILD_INTERFACE:sasset_options>)
+target_link_libraries(sasset_core
+    PUBLIC  nlohmann_json::nlohmann_json
+    PRIVATE $<BUILD_INTERFACE:sasset_options>)
 
 # ============================================================
 #  テスト

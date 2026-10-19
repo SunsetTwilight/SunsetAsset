@@ -20,6 +20,7 @@ target_include_directories(sasset_doctest SYSTEM INTERFACE "${sasset_doctest_SOU
 add_executable(sasset_tests
     doctest_main.cpp
     test_guid.cpp
+    test_core.cpp
 )
 target_link_libraries(sasset_tests PRIVATE SunsetAsset::core sasset_doctest sasset_options)
 add_test(NAME unit COMMAND sasset_tests)
