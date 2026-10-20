@@ -6,7 +6,7 @@
 #
 #  ターゲット:
 #    SunsetAsset::core     GUID、.meta、取り込みの登録、キャッシュ (静的ライブラリ)
-#    SunsetAsset::model    モデルの取り込み (FBX / OBJ: ufbx、glTF / GLB: cgltf)
+#    SunsetAsset::model    モデルの取り込み (FBX / OBJ: ufbx、glTF / GLB: cgltf、PMX / PMD: 自作)
 #    SunsetAsset::texture  テクスチャの取り込み (PNG / JPEG / TGA / BMP: stb_image)
 # ============================================================
 cmake_minimum_required(VERSION 3.22)
@@ -145,6 +145,7 @@ add_library(sasset_model STATIC
     src/model/ModelFormats.h
     src/model/ModelImporter.cpp
     src/model/ModelSerialize.cpp
+    src/model/PmxImport.cpp
     src/model/UfbxImport.cpp
 )
 add_library(SunsetAsset::model ALIAS sasset_model)

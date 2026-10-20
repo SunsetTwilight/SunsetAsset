@@ -2,10 +2,11 @@
 // ============================================================
 //  sunset/asset/model/ModelImporter.h
 //
-//  モデルの取り込み ("model"): .fbx / .obj (ufbx)、.gltf / .glb (cgltf)。結果はモデルの型 (Model.h) をキャッシュに入れる。
+//  モデルの取り込み ("model"): .fbx / .obj (ufbx)、.gltf / .glb (cgltf)、.pmx / .pmd (MMD、自作)。
+//  結果はモデルの型 (Model.h) をキャッシュに入れる。
 //
 //  設定 (.meta の settings):
-//    scale             float  1.0   さらに掛ける大きさ (単位の変換は自動。FBX の cm → m など)
+//    scale             float  1.0   さらに掛ける大きさ (単位の変換は自動。FBX の cm → m、MMD の 1 単位 → 0.08 m など)
 //    generateTangents  bool   true  UV0 があるメッシュに接線を作る
 // ============================================================
 

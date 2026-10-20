@@ -16,8 +16,11 @@ namespace sunset::asset::detail
 {
 bool importGltf(const std::filesystem::path& file, Model& out, Diagnostics& diag);
 bool importUfbx(const std::filesystem::path& file, Model& out, Diagnostics& diag);   // FBX と OBJ
+// PMX / PMD (MMD)。scale は設定の大きさ (MMD の単位 0.08 m に掛ける。剛体などの extras にも掛ける)
+bool importMmd(const std::filesystem::path& file, Model& out, Diagnostics& diag, float scale);
 
 // 元のファイルが参照しているファイル (テクスチャ、glTF の .bin など)。元のファイルからの相対パス (区切りは "/")
 std::vector<std::string> gltfReferencedFiles(const std::filesystem::path& file, Diagnostics& diag);
 std::vector<std::string> ufbxReferencedFiles(const std::filesystem::path& file, Diagnostics& diag);
+std::vector<std::string> mmdReferencedFiles(const std::filesystem::path& file, Diagnostics& diag);   // テクスチャ / スフィア / 個別のトゥーン
 } // namespace sunset::asset::detail

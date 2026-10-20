@@ -11,6 +11,9 @@
 //    メッシュ 頂点の列 (位置、法線、接線、UV0 / UV1、色、骨の番号と重み)、インデックス、サブメッシュ、モーフ、境界の箱
 //    スロット マテリアルのスロット (名前と、取り込んだマテリアルの情報)。サブメッシュはスロットの番号を持つ
 //    スキン   骨 (ノードの番号) と逆バインド行列
+//    extras   形式に固有の情報 (JSON。モデル / スロット / ノード)。描画には使わず、保つだけ。
+//             PMX / PMD: スロットにトゥーン / スフィア / 輪郭線、ノード (骨) に付与親 / IK のフラグ、
+//             モデルに IK / 頂点以外のモーフ / 剛体 / ジョイント / 表示枠 (キーは "mmd")
 // ============================================================
 
 #include "sunset/asset/Artifact.h"
@@ -34,6 +37,7 @@ struct ModelNode
 	Float3      scale { 1, 1, 1 };
 	int32_t     mesh = -1;
 	int32_t     skin = -1;
+	Json        extras;   // 形式に固有の情報 (null = なし)
 };
 
 struct SubMesh
@@ -88,6 +92,7 @@ struct MaterialSlot
 	float       alphaCutoff = 0.5f;
 	bool        doubleSided = false;
 	TextureRef  baseColorTexture, normalTexture, metallicRoughnessTexture, occlusionTexture, emissiveTexture;
+	Json        extras;   // 形式に固有の情報 (null = なし。PMX のトゥーン / スフィア / 輪郭線など)
 };
 
 struct ModelSkin
@@ -104,6 +109,7 @@ struct Model
 	std::vector<MaterialSlot> slots;
 	std::vector<ModelSkin>    skins;
 	Float3                    boundsMin { 0, 0, 0 }, boundsMax { 0, 0, 0 };   // 全体 (ノードの変換を含む、バインドポーズ)
+	Json                      extras;   // 形式に固有の情報 (null = なし。PMX の IK / 剛体 / ジョイント …)
 };
 
 // キャッシュのチャンクとの変換。構造は "MJSN" (JSON)、配列は "MBIN" (バイナリ) に入れる

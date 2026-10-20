@@ -92,18 +92,30 @@ void writeModel(const Model& m, ArtifactWriter& out)
 	j["version"] = 1;
 	j["boundsMin"] = arr(m.boundsMin);
 	j["boundsMax"] = arr(m.boundsMax);
+	if (!m.extras.is_null())
+		j["extras"] = m.extras;
 	Json nodes = Json::array();
 	for (const auto& n : m.nodes)
-		nodes.push_back({ { "name", n.name }, { "parent", n.parent }, { "t", arr(n.translation) }, { "r", arr(n.rotation) },
-		                  { "s", arr(n.scale) }, { "mesh", n.mesh }, { "skin", n.skin } });
+	{
+		Json jn = { { "name", n.name }, { "parent", n.parent }, { "t", arr(n.translation) }, { "r", arr(n.rotation) },
+		            { "s", arr(n.scale) }, { "mesh", n.mesh }, { "skin", n.skin } };
+		if (!n.extras.is_null())
+			jn["extras"] = n.extras;
+		nodes.push_back(std::move(jn));
+	}
 	j["nodes"] = nodes;
 	Json slots = Json::array();
 	for (const auto& s : m.slots)
-		slots.push_back({ { "name", s.name }, { "baseColor", arr(s.baseColor) }, { "metallic", s.metallic }, { "roughness", s.roughness },
-		                  { "emissive", arr(s.emissive) }, { "alphaMode", alphaName(s.alphaMode) }, { "alphaCutoff", s.alphaCutoff },
-		                  { "doubleSided", s.doubleSided }, { "baseColorTexture", texJson(s.baseColorTexture) },
-		                  { "normalTexture", texJson(s.normalTexture) }, { "metallicRoughnessTexture", texJson(s.metallicRoughnessTexture) },
-		                  { "occlusionTexture", texJson(s.occlusionTexture) }, { "emissiveTexture", texJson(s.emissiveTexture) } });
+	{
+		Json js = { { "name", s.name }, { "baseColor", arr(s.baseColor) }, { "metallic", s.metallic }, { "roughness", s.roughness },
+		            { "emissive", arr(s.emissive) }, { "alphaMode", alphaName(s.alphaMode) }, { "alphaCutoff", s.alphaCutoff },
+		            { "doubleSided", s.doubleSided }, { "baseColorTexture", texJson(s.baseColorTexture) },
+		            { "normalTexture", texJson(s.normalTexture) }, { "metallicRoughnessTexture", texJson(s.metallicRoughnessTexture) },
+		            { "occlusionTexture", texJson(s.occlusionTexture) }, { "emissiveTexture", texJson(s.emissiveTexture) } };
+		if (!s.extras.is_null())
+			js["extras"] = s.extras;
+		slots.push_back(std::move(js));
+	}
 	j["slots"] = slots;
 	Json skins = Json::array();
 	for (const auto& s : m.skins)
@@ -148,6 +160,7 @@ bool readModel(const ArtifactReader& in, Model& out, std::string* error)
 		Model m;
 		getArr(j, "boundsMin", m.boundsMin);
 		getArr(j, "boundsMax", m.boundsMax);
+		m.extras = j.value("extras", Json());
 		for (const auto& n : j.at("nodes"))
 		{
 			ModelNode node;
@@ -158,6 +171,7 @@ bool readModel(const ArtifactReader& in, Model& out, std::string* error)
 			getArr(n, "s", node.scale);
 			node.mesh = n.value("mesh", -1);
 			node.skin = n.value("skin", -1);
+			node.extras = n.value("extras", Json());
 			m.nodes.push_back(node);
 		}
 		for (const auto& s : j.at("slots"))
@@ -177,6 +191,7 @@ bool readModel(const ArtifactReader& in, Model& out, std::string* error)
 			slot.metallicRoughnessTexture = texFrom(s.value("metallicRoughnessTexture", Json()));
 			slot.occlusionTexture         = texFrom(s.value("occlusionTexture", Json()));
 			slot.emissiveTexture          = texFrom(s.value("emissiveTexture", Json()));
+			slot.extras                   = s.value("extras", Json());
 			m.slots.push_back(slot);
 		}
 		for (const auto& s : j.at("skins"))
