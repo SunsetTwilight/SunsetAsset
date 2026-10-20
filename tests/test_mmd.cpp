@@ -47,7 +47,8 @@ fs::path freshDir(const char* name)
 }
 
 // 4 頂点 (BDEF1 / BDEF2 / BDEF4 / SDEF)、2 材質、2 骨 (IK と付与親)、モーフ 3 つ、表示枠、剛体、ジョイント
-std::string makePmx()
+// toonB: 材質 B の個別のトゥーンのテクスチャの番号 (-1 はなし。配布モデルによくある)
+std::string makePmx(int8_t toonB = 0)
 {
 	Bytes w;
 	w.raw("PMX ").f(2.0f);
@@ -73,9 +74,9 @@ std::string makePmx()
 	w.put<int32_t>(2);
 	w.text(u"体").text(u"body").f4(1, 0.5f, 0.25f, 1).f3(0.1f, 0.1f, 0.1f).f(50).f3(0.5f, 0.5f, 0.5f).put<uint8_t>(0x01 | 0x04 | 0x10);
 	w.f4(0, 0, 0, 1).f(1.0f).put<int8_t>(0).put<int8_t>(1).put<uint8_t>(1).put<uint8_t>(1).put<uint8_t>(3).text(u"").put<int32_t>(3);
-	// 材質 B: 半透明、テクスチャなし、個別のトゥーン (テクスチャ 0)
+	// 材質 B: 半透明、テクスチャなし、個別のトゥーン (テクスチャ toonB)
 	w.text(u"髪").text(u"hair").f4(0.2f, 0.2f, 0.2f, 0.5f).f3(0, 0, 0).f(5).f3(0, 0, 0).put<uint8_t>(0);
-	w.f4(0, 0, 0, 1).f(1.0f).put<int8_t>(-1).put<int8_t>(-1).put<uint8_t>(0).put<uint8_t>(0).put<int8_t>(0).text(u"memo").put<int32_t>(3);
+	w.f4(0, 0, 0, 1).f(1.0f).put<int8_t>(-1).put<int8_t>(-1).put<uint8_t>(0).put<uint8_t>(0).put<int8_t>(toonB).text(u"memo").put<int32_t>(3);
 	// 骨 0: センター (0, 10, 0)、骨 1: 頭 (0, 15, 5)。骨 1 は IK (リンクは骨 0、範囲あり) と回転の付与親 (骨 0, 0.5)
 	w.put<int32_t>(2);
 	w.text(u"センター").text(u"center").f3(0, 10, 0).put<int8_t>(-1).put<int32_t>(0).put<uint16_t>(0x0001 | 0x0002 | 0x0008 | 0x0010).put<int8_t>(1);
@@ -259,6 +260,14 @@ TEST_CASE("MMD: PMX を読む (座標、重み、材質、骨、モーフ、物�
 	Diagnostics rd;
 	const auto refs = f.reg.forFile(root / "test.pmx")->referencedFiles(root / "test.pmx", rd);
 	CHECK(refs == std::vector<std::string>{ "tex/a.png", "sph/s.sph" });
+
+	// 個別のトゥーンでテクスチャなし (-1): トゥーンなしとして読み、参照するファイルにも含めない
+	writeBytes(root / "notoon.pmx", makePmx(-1));
+	Diagnostics nd;
+	const Model nt = importFile(root, freshDir("sasset_pmx_cache3"), "notoon.pmx", nd);
+	CHECK(nt.slots[1].extras["mmd"]["toon"].is_null());
+	const auto nrefs = f.reg.forFile(root / "notoon.pmx")->referencedFiles(root / "notoon.pmx", nd);
+	CHECK(nrefs == std::vector<std::string>{ "tex/a.png", "sph/s.sph" });
 
 	// 壊れたファイル
 	writeBytes(root / "broken.pmx", makePmx().substr(0, 200));

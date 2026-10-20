@@ -388,7 +388,7 @@ bool readPmx(const std::string& data, Model& out, Diagnostics& diag, float scale
 		offset += static_cast<uint32_t>(surfaceCount);
 		if (refs)
 		{
-			for (const std::string& f : { tex(texIndex), tex(sphereIndex), toonShared == 0 ? std::string(toon.value("file", "")) : std::string() })
+			for (const std::string& f : { tex(texIndex), tex(sphereIndex), toonShared == 0 && toon.is_object() ? toon["file"].get<std::string>() : std::string() })
 				if (!f.empty() && std::find(refs->begin(), refs->end(), f) == refs->end())
 					refs->push_back(f);
 		}
